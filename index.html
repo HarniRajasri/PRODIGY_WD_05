@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="icon" href="logo.jpeg">
+  <title>WeatherMappr</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      color: #333;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .weather-container {
+      max-width: 600px;
+      margin: auto;
+      padding: 30px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .search input {
+      padding: 10px;
+      width: 60%;
+      margin-right: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .search button {
+      padding: 10px 15px;
+      border: none;
+      background-color: #0077ff;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .search button:hover {
+      background-color: #005fcc;
+    }
+
+    .weather-result {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="weather-container">
+    <h1>🌤 WeatherMappr</h1>
+
+    <div class="search">
+      <input type="text" id="cityInput" placeholder="Enter city name" />
+      <button onclick="getWeatherByCity()">Search</button>
+      <button onclick="getWeatherByLocation()">📍 Use My Location</button>
+    </div>
+
+    <div id="weatherResult" class="weather-result">
+      <!-- Weather data will show here -->
+    </div>
+  </div>
+
+  <script>
+    const apiKey = "Q9MuMI77qiswrcBeXORiuAjmkjwfRZlj";
+
+    async function getCoordinates(city) {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`);
+      const data = await response.json();
+      if (data.length === 0) throw new Error("City not found");
+      return {
+        lat: data[0].lat,
+        lon: data[0].lon
+      };
+    }
+
+    async function fetchWeather(lat, lon) {
+      const url = `https://api.tomorrow.io/v4/weather/forecast?location=${lat},${lon}&apikey=${apiKey}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data && data.timelines && data.timelines.daily && data.timelines.daily.length > 0) {
+        const today = data.timelines.daily[0];
+        const weatherCode = today.values.weatherCodeMax;
+        const temperature = today.values.temperatureMax;
+        const conditions = mapWeatherCode(weatherCode);
+
+        document.getElementById("weatherResult").innerHTML = `
+          <h2>Weather Forecast</h2>
+          <p>🌡 Temperature Max: ${temperature} °C</p>
+          <p>🌥 Condition: ${conditions}</p>
+        `;
+      } else {
+        document.getElementById("weatherResult").innerHTML = "No forecast data available.";
+      }
+    }
+
+    function mapWeatherCode(code) {
+      // Simplified mapping (customize more if needed)
+      const map = {
+        1000: "Clear",
+        1100: "Mostly Clear",
+        1101: "Partly Cloudy",
+        1102: "Mostly Cloudy",
+        1001: "Cloudy",
+        2000: "Fog",
+        2100: "Light Fog",
+        4000: "Drizzle",
+        4001: "Rain",
+        4200: "Light Rain",
+        4201: "Heavy Rain",
+        5000: "Snow",
+        5001: "Flurries",
+        5100: "Light Snow",
+        5101: "Heavy Snow",
+        8000: "Thunderstorm"
+      };
+      return map[code] || "Unknown";
+    }
+
+    async function getWeatherByCity() {
+      const city = document.getElementById("cityInput").value;
+      if (!city) return alert("Enter a city name.");
+
+      try {
+        const coords = await getCoordinates(city);
+        fetchWeather(coords.lat, coords.lon);
+      } catch (err) {
+        document.getElementById("weatherResult").innerHTML = `❌ Error: ${err.message}`;
+      }
+    }
+
+    function getWeatherByLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const { latitude, longitude } = position.coords;
+          fetchWeather(latitude, longitude);
+        },
+        () => {
+          alert("Unable to get location.");
+        }
+      );
+    }
+  </script>
+</body>
+</html>
